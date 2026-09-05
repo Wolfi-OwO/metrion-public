@@ -1,0 +1,32 @@
+{
+  "name": "vps-metrics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minute-by-minute VPS resource metrics, collected on the Contabo box and pushed to Azure Blob Storage. The collector is the one source of truth these numbers come from; the viewer (Azure Container App) reads them back and is a follow-up project.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.19"
+  },
+  "workspaces": [
+    "packages/shared",
+    "applications/collector"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "^3.3.3",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.15.0"
+  }
+}
