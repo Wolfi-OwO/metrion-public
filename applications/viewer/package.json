@@ -1,0 +1,35 @@
+{
+  "name": "@mona/viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reads the day-blobs the collector writes to Azure Blob Storage, serves the query API the charts run on, and accepts metrics from other senders over an authenticated ingest endpoint.",
+  "type": "module",
+  "main": "./dist/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "start": "node dist/main.js",
+    "test": "npm run build && node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.5.0",
+    "@azure/storage-blob": "^12.26.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.0.0",
+    "pino": "^9.14.0",
+    "pino-http": "^10.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@mona/shared": "*",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/swagger-ui-express": "^4.1.8",
+    "typescript": "^5.7.2"
+  }
+}
