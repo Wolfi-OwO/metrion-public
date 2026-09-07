@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": [{ "path": "packages/shared" }, { "path": "applications/collector" }]
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "applications/collector" },
+    { "path": "applications/viewer" }
+  ]
 }

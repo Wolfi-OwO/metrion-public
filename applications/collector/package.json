@@ -1,5 +1,5 @@
 {
-  "name": "@vps-metrics/collector",
+  "name": "@mona/collector",
   "version": "0.1.0",
   "private": true,
   "description": "Runs once a minute (systemd timer), reads CPU/RAM/disk/network/container/Caddy-request metrics off the box, and appends one JSON line to the day's Azure append blob. Zero runtime dependencies on purpose - stdlib http/fs/os only - so there is nothing to `npm install` on the VPS.",
@@ -10,7 +10,7 @@
     "test": "npm run build && node --test tests/*.test.ts"
   },
   "devDependencies": {
-    "@vps-metrics/shared": "*",
+    "@mona/shared": "*",
     "typescript": "^5.7.2"
   }
 }

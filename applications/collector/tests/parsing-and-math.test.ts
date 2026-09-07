@@ -169,3 +169,106 @@ test('demuxDockerLogStream strips the 8-byte frame header from each chunk', () =
   const framed = Buffer.concat([header, payload]);
   assert.equal(demuxDockerLogStream(framed), 'hello\n');
 });
+
+test('aggregateByHost: a prototype-named Host header neither throws nor pollutes', () => {
+  // `Host:` is attacker-controlled. On a plain object literal
+  // `perHost["__proto__"]` resolved to Object.prototype, so the accumulator WAS
+  // Object.prototype: it threw (blacking out the whole minute's request
+  // metrics, repeatable on demand) and left `({}).count === NaN` for the rest
+  // of the run. Asserting the absence of the pollution, not just that no error
+  // escaped - a try/catch would hide exactly the bug this guards.
+  const text = ['__proto__', 'constructor', 'prototype', 'toString', 'valueOf']
+    .map((host) => JSON.stringify({ status: 200, duration: 0.01, request: { host } }))
+    .join('\n');
+
+  const byHost = aggregateByHost(parseCaddyAccessLogLines(text));
+
+  assert.equal(({} as Record<string, unknown>).count, undefined);
+  assert.equal(({} as Record<string, unknown>).statusCounts, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call({}, 'durationSecondsSum'), false);
+
+  // They pass the charset check, so they are ordinary hosts and must still be
+  // counted - the null-prototype map is what makes them safe, not a filter.
+  assert.equal(byHost['__proto__']?.count, 1);
+  assert.equal(byHost['constructor']?.count, 1);
+  assert.deepEqual(byHost['__proto__']?.statusCounts, { '200': 1 });
+});
+
+test('aggregateByHost: hosts outside the ingest charset are dropped, trailing newline included', () => {
+  // Same charset the HTTP ingest endpoint enforces, so one field cannot be
+  // valid at one door and invalid at the other. The trailing newline is the
+  // anchor trap: JS `$` (no `m` flag) does not match before a final \n, which
+  // is what makes "evil\n" rejected here rather than silently accepted.
+  const rejected = [
+    'evil\n',
+    'a\nb',
+    'ho st',
+    'ho/st',
+    '../etc/passwd',
+    'a'.repeat(201),
+    '<script>',
+  ];
+  const accepted = ['woofi-developments.at', 'sub.domain.example.com', 'host:8443', 'a_b-c.d'];
+
+  const text = [...rejected, ...accepted]
+    .map((host) => JSON.stringify({ status: 200, duration: 0.01, request: { host } }))
+    .join('\n');
+
+  const byHost = aggregateByHost(parseCaddyAccessLogLines(text));
+
+  for (const host of rejected) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(byHost, host),
+      false,
+      `should drop ${JSON.stringify(host)}`,
+    );
+  }
+  for (const host of accepted) {
+    assert.equal(byHost[host]?.count, 1, `should keep ${host}`);
+  }
+});
+
+test('aggregateByHost: distinct hosts are capped per minute', () => {
+  // Every host becomes its own `requests:<host>` envelope on one blob line, so
+  // an attacker spraying unique Host headers would otherwise inflate the
+  // day-blob and every later read of it.
+  const lines = Array.from({ length: 250 }, (_, index) => ({
+    status: 200,
+    duration: 0.01,
+    request: { host: `host-${index}.example.com` },
+  }));
+
+  const byHost = aggregateByHost(lines);
+  assert.equal(Object.keys(byHost).length, 200);
+
+  // The cap drops only NEW hosts: one already being counted keeps counting, so
+  // a flood cannot stop a real vhost's numbers mid-minute.
+  const withRepeats = aggregateByHost([
+    ...lines,
+    { status: 200, duration: 0.01, request: { host: 'host-0.example.com' } },
+  ]);
+  assert.equal(withRepeats['host-0.example.com']?.count, 2);
+});
+
+test('aggregateByHost: real hosts still aggregate exactly as before the hardening', () => {
+  // The regression guard for the fix itself: counts, per-status breakdown and
+  // the seconds-to-milliseconds latency conversion must be untouched.
+  const text = [
+    { status: 200, duration: 0.1, request: { host: 'www.woofi-developments.at' } },
+    { status: 200, duration: 0.3, request: { host: 'www.woofi-developments.at' } },
+    { status: 500, duration: 0.2, request: { host: 'www.woofi-developments.at' } },
+    { status: 200, duration: 0.05, request: { host: 'status.woofi-developments.at' } },
+  ]
+    .map((line) => JSON.stringify(line))
+    .join('\n');
+
+  const byHost = aggregateByHost(parseCaddyAccessLogLines(text));
+
+  assert.equal(byHost['www.woofi-developments.at']?.count, 3);
+  assert.deepEqual(byHost['www.woofi-developments.at']?.statusCounts, { '200': 2, '500': 1 });
+  // Tolerance, not equality: (0.1+0.3+0.2)/3*1000 is 200.00000000000003 in
+  // binary floating point. Pre-existing behaviour, unchanged by the hardening.
+  assert.ok(Math.abs((byHost['www.woofi-developments.at']?.avgLatencyMs ?? 0) - 200) < 1e-9);
+  assert.equal(byHost['status.woofi-developments.at']?.count, 1);
+  assert.equal(byHost['status.woofi-developments.at']?.avgLatencyMs, 50);
+});

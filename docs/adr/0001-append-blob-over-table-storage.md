@@ -24,7 +24,7 @@ and monitor for the one property retention is supposed to provide for free.
 
 Append Blob, one per UTC day (`<container>/<YYYY-MM-DD>.jsonl`), retention
 via a **Blob Lifecycle Management policy** (`vps-metrics-retention-90d` on
-`<REDACTED-STORAGE-ACCOUNT>`) that deletes blobs 90 days after their last write - a
+the storage account) that deletes blobs 90 days after their last write - a
 day-blob's last write is its last minute of that UTC day, so this is
 "delete anything older than ~90 days," done entirely by the storage
 platform, zero code.

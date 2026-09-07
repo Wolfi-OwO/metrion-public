@@ -1,7 +1,7 @@
 # Contributing
 
-Single-maintainer project; this document exists mainly so the rules are
-written down once instead of re-derived per change.
+Single-maintainer project (mona); this document exists mainly so the rules
+are written down once instead of re-derived per change.
 
 ## Setup
 
@@ -25,3 +25,7 @@ build (`npm run build`), copy `applications/collector/dist/` to
 `/opt/vps-metrics-collector/dist` on the VPS, restart nothing (it's a
 systemd-timer one-shot, next tick picks up the new code). See the delivery
 report for the exact systemd units and directory layout.
+
+The server-side paths and unit names still say `vps-metrics` even though
+the repo is now mona - `organizational/deployment-runbook.md` records why
+under "Why the server still says vps-metrics".

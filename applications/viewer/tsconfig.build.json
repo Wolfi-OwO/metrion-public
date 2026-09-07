@@ -1,0 +1,5 @@
+{
+  "//": "`references` is NOT inherited through `extends`, so repeating it here is what makes `tsc -b tsconfig.build.json` build packages/shared first. Without it this target compiles only when some earlier build happened to leave packages/shared/dist behind - green locally, broken in a clean checkout and in the Docker build.",
+  "extends": "./tsconfig.json",
+  "references": [{ "path": "../../packages/shared" }]
+}

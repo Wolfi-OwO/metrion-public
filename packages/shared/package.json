@@ -1,8 +1,8 @@
 {
-  "name": "@vps-metrics/shared",
+  "name": "@mona/shared",
   "version": "0.1.0",
   "private": true,
-  "description": "Wire-format types for the minute-by-minute metrics sample. The one schema both the collector (writer) and the future viewer (reader) must agree on.",
+  "description": "Wire-format types for the generic metric envelope. The one schema both the collector (writer) and the future viewer (reader) must agree on. Type-only by design - this package must erase completely at compile time.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

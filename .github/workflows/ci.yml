@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A second push to the same branch makes the first run's result irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22: the viewer and the client both declare `engines.node >= 22`.
+      # The root stays at >= 18.19 because the collector is deployed to an
+      # Ubuntu 24.04 VPS whose Node comes from the distribution repositories -
+      # CI running a newer runtime does not license raising that floor.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The same root scripts a developer runs locally, in the same order, so
+      # a green CI run and a green working copy mean the same thing. CI does
+      # not get its own parallel set of commands to drift from.
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+
+      # Builds every workspace, the client's Vite build included. Runs before
+      # the tests because each workspace's `test` script compiles first
+      # anyway - a build failure should read as a build failure.
+      - run: npm run build
+
+      - run: npm test
