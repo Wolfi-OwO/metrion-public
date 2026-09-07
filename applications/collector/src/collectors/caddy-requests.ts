@@ -1,4 +1,4 @@
-import type { HostRequestStats } from '@vps-metrics/shared';
+import type { HostRequestStats } from '@mona/shared';
 import { dockerGetRaw, demuxDockerLogStream } from '../lib/docker-socket.js';
 import { readJsonState, writeJsonState } from '../lib/state-store.js';
 
@@ -44,22 +44,77 @@ export function parseCaddyAccessLogLines(text: string): CaddyAccessLogLine[] {
   return lines;
 }
 
+/**
+ * A host is the `Host:` header of a request off the public internet - the most
+ * literally untrusted input this collector touches.
+ *
+ * Same charset and length bound as `IDENTIFIER` in
+ * `applications/viewer/src/schemas/ingest.schemas.ts`, because both are write
+ * paths for the same field: without this the collector would accept host keys
+ * the HTTP ingest endpoint rejects, so the same value would be valid or not
+ * depending only on which door it arrived through. Duplicated as a literal
+ * rather than shared - `@mona/shared` must erase completely at compile time,
+ * and the collector may not import runtime code from anywhere else.
+ *
+ * Note this regex does NOT stop `__proto__` or `constructor`; both match it.
+ * The null-prototype maps below are what make those safe.
+ */
+const VALID_HOST = /^[A-Za-z0-9._:-]+$/;
+const MAX_HOST_LENGTH = 200;
+
+/**
+ * ponytail: hard cap on distinct hosts in one minute, dropping the rest. Each
+ * host becomes its own `requests:<host>` envelope, so an attacker spraying
+ * unique Host headers would turn one minute into thousands of envelopes on a
+ * single blob line, inflating the day-blob and every later read of it. 200 is
+ * far above the handful of real vhosts on this box. Upgrade path if it ever
+ * binds for a legitimate reason: keep the top N by count and fold the tail
+ * into one `other` bucket instead of dropping it.
+ */
+const MAX_DISTINCT_HOSTS = 200;
+
 export function aggregateByHost(
   lines: readonly CaddyAccessLogLine[],
 ): Record<string, HostRequestStats> {
+  // `Object.create(null)`, not `{}`: `host` is attacker-controlled, and on a
+  // normal object literal `perHost["__proto__"]` resolves to Object.prototype
+  // instead of being absent - so `??=` never assigned, `bucket` WAS
+  // Object.prototype, writing to it polluted every object in the process
+  // (`({}).count` became NaN) and the next line threw. main.ts catches that
+  // throw, so one request with `Host: __proto__` silently blacked out the
+  // whole minute's request metrics, repeatable for as long as it kept being
+  // sent. A null-prototype map has no inherited keys to collide with.
   const perHost: Record<
     string,
     { count: number; statusCounts: Record<string, number>; durationSecondsSum: number }
-  > = {};
+  > = Object.create(null);
+  let distinctHosts = 0;
+
   for (const line of lines) {
     const host = line.request?.host ?? 'unknown';
-    const bucket = (perHost[host] ??= { count: 0, statusCounts: {}, durationSecondsSum: 0 });
+    if (host.length > MAX_HOST_LENGTH || !VALID_HOST.test(host)) continue;
+
+    let bucket = perHost[host];
+    if (bucket === undefined) {
+      if (distinctHosts >= MAX_DISTINCT_HOSTS) continue;
+      // `statusCounts` stays a plain object: its keys are `String(line.status)`
+      // and the parser above admits a line only when `status` is a number, so
+      // no attacker-controlled string can reach this key space.
+      bucket = perHost[host] = { count: 0, statusCounts: {}, durationSecondsSum: 0 };
+      distinctHosts += 1;
+    }
+
     bucket.count += 1;
     const statusKey = String(line.status);
     bucket.statusCounts[statusKey] = (bucket.statusCounts[statusKey] ?? 0) + 1;
     bucket.durationSecondsSum += line.duration ?? 0;
   }
-  const result: Record<string, HostRequestStats> = {};
+
+  // Null-prototyped for a second reason: `result["__proto__"] = bucket` on a
+  // normal object hits Object.prototype's `__proto__` SETTER, which swaps the
+  // object's prototype instead of adding the key - the host would vanish from
+  // the output rather than throw.
+  const result: Record<string, HostRequestStats> = Object.create(null);
   for (const [host, bucket] of Object.entries(perHost)) {
     result[host] = {
       count: bucket.count,
