@@ -1,21 +1,26 @@
 import { fileURLToPath } from 'node:url';
-import type { MetricsSample } from '@vps-metrics/shared';
+import type { LegacyMetricsSample, MetricEnvelope } from '@mona/shared';
 import { appendLine, dayBlobName } from './azure/append-blob-client.js';
 import { collectHostRequestStats } from './collectors/caddy-requests.js';
 import { collectContainerSamples } from './collectors/docker-containers.js';
 import { collectSystemSample } from './collectors/system.js';
 import { config } from './config/index.js';
 import { SampleQueue } from './lib/queue.js';
+import { toMetricEnvelopes } from './lib/to-metric-envelopes.js';
 
 /**
- * One run: collect everything, build one `MetricsSample`, then flush the
- * local queue (this new sample included) to Azure oldest-first. No `.listen()`
- * in this app - it is a systemd-timer one-shot, not an HTTP service - so
- * this is the whole "startup file", run directly by the timer's ExecStart.
+ * One run: collect everything, map it to `MetricEnvelope[]` (one JSONL line
+ * per run, see ADR 0003), then flush the local queue (this new line
+ * included) to Azure oldest-first. No `.listen()` in this app - it is a
+ * systemd-timer one-shot, not an HTTP service - so this is the whole
+ * "startup file", run directly by the timer's ExecStart.
  * Pure collection/aggregation logic lives in `collectors/`/`lib/` and is
  * importable (and imported, by the tests) without triggering any of this.
  */
-export async function collectAndSend(): Promise<{ sample: MetricsSample; queuedAfter: number }> {
+export async function collectAndSend(): Promise<{
+  sample: LegacyMetricsSample;
+  queuedAfter: number;
+}> {
   const startedAt = process.hrtime.bigint();
   const cpuUsageAtStart = process.cpuUsage();
   const queue = new SampleQueue(config.stateDir, config.queue.maxLines);
@@ -54,7 +59,7 @@ export async function collectAndSend(): Promise<{ sample: MetricsSample; queuedA
   const cpuTimeMs = (cpuUsageDelta.user + cpuUsageDelta.system) / 1000;
   const maxRssMiB = process.resourceUsage().maxRSS / 1024;
 
-  const sample: MetricsSample = {
+  const sample: LegacyMetricsSample = {
     timestamp: timestamp.toISOString(),
     host: config.host,
     cpu: system.cpu,
@@ -67,13 +72,37 @@ export async function collectAndSend(): Promise<{ sample: MetricsSample; queuedA
   };
 
   if (config.dryRun) {
-    process.stdout.write(`${JSON.stringify(sample)}\n`);
+    process.stdout.write(`${JSON.stringify(toMetricEnvelopes(sample))}\n`);
     return { sample, queuedAfter: 0 };
   }
 
-  queue.push(JSON.stringify(sample));
+  queue.push(JSON.stringify(toMetricEnvelopes(sample)));
   await flushQueue(queue);
   return { sample, queuedAfter: queue.size };
+}
+
+/**
+ * The UTC day a queued line belongs in. Handles both shapes on purpose: a
+ * line written after the ADR 0003 cutover is an array of envelopes, but the
+ * queue file on the live box can still hold pre-cutover object lines at the
+ * moment the new build is deployed, and those are real undelivered samples.
+ * Returns `null` for anything unparseable rather than throwing.
+ */
+function lineTimestamp(line: string): Date | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    return null;
+  }
+
+  const iso = Array.isArray(parsed)
+    ? (parsed as MetricEnvelope[])[0]?.metrics[0]?.timestamp
+    : (parsed as LegacyMetricsSample).timestamp;
+
+  if (typeof iso !== 'string') return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -89,8 +118,17 @@ async function flushQueue(queue: SampleQueue): Promise<void> {
 
   for (const line of lines) {
     if (Date.now() >= budgetEndsAt) break;
-    const parsed = JSON.parse(line) as MetricsSample;
-    const blobName = dayBlobName(new Date(parsed.timestamp));
+    const timestamp = lineTimestamp(line);
+    if (timestamp === null) {
+      // Dropped, not fatal - same policy as `SampleQueue.readAll`. Throwing
+      // here would abort the flush before `replaceAll` runs, so one bad line
+      // would wedge the queue permanently and nothing would ever be
+      // delivered again.
+      console.error('Dropping a queued line with no usable timestamp.');
+      sentCount += 1;
+      continue;
+    }
+    const blobName = dayBlobName(timestamp);
     try {
       await appendLine(
         {
