@@ -1,0 +1,14 @@
+# The build context is the repository root (see the Dockerfile header), so
+# these are root-relative. Everything here either bloats the context or would
+# overwrite something the image builds itself.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+organizational
+docs
+scripts

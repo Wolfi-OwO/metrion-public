@@ -1,0 +1,62 @@
+# One image, one origin: the API and the built client are served by the same
+# Express process. That is what makes CORS unnecessary in production and what
+# makes `maxReplicas: 1` coherent - there is one thing to deploy, not two that
+# have to agree on a version.
+#
+# Built from the REPOSITORY ROOT, not from this directory, because npm
+# workspaces need the root package.json and lockfile to resolve:
+#   docker build -f applications/viewer/Dockerfile -t mona-viewer .
+
+FROM node:22-alpine AS build
+WORKDIR /repo
+
+# Manifests first, so a dependency install is only re-run when a manifest
+# actually changes rather than on every source edit.
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY applications/collector/package.json applications/collector/
+COPY applications/viewer/package.json applications/viewer/
+COPY applications/viewer/client/package.json applications/viewer/client/
+RUN npm ci
+
+COPY tsconfig.base.json tsconfig.json ./
+COPY packages/shared packages/shared
+COPY applications/viewer applications/viewer
+
+# The client is built by Vite and is deliberately outside the root `tsc -b`
+# project graph, so JSX never enters the collector's build. Build the server
+# and the client separately, each with its own toolchain.
+RUN npm run build --workspace @mona/viewer \
+ && npm run build --workspace @mona/viewer-client
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Production dependencies only: no TypeScript, no Vite, no test tooling in the
+# image that faces the internet.
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY applications/collector/package.json applications/collector/
+COPY applications/viewer/package.json applications/viewer/
+COPY applications/viewer/client/package.json applications/viewer/client/
+RUN npm ci --omit=dev --workspace @mona/viewer --include-workspace-root \
+ && npm cache clean --force
+
+COPY --from=build /repo/applications/viewer/dist ./dist
+# The client's built assets, where `static-frontend.ts` looks for them: a
+# `public/` sibling of `dist/`.
+COPY --from=build /repo/applications/viewer/client/dist ./public
+
+# The legal documents the /impressum, /privacy and /terms routes render. They
+# MUST be in the image: Austrian ECG requires the Impressum to be reachable
+# from the deployed site, and without this copy those routes 404 in production
+# while passing every local test.
+COPY IMPRESSUM.md PRIVACY.md TERMS_OF_USE.md ./
+
+# node:alpine ships an unprivileged `node` user. Running as root in a
+# container that serves the public internet buys nothing.
+USER node
+
+EXPOSE 8080
+CMD ["node", "dist/main.js"]
