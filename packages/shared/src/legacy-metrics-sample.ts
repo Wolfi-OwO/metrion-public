@@ -1,14 +1,17 @@
 /**
- * The one wire format the collector writes and the (future) viewer reads.
+ * The pre-cutover wire format. Kept for exactly one reason: the viewer still
+ * has to read the blob lines written before the switch to `MetricEnvelope`,
+ * and those lines are never rewritten (see ADR 0003). Nothing writes this
+ * shape any more.
  *
  * Deliberately excludes anything the privacy review flagged: no client IPs,
  * no user agents, no request paths/query strings. `requestsByHost` is an
  * aggregate over the whole minute, keyed by hostname only.
  *
- * One line of this shape, serialized as JSON, is appended to
+ * One line of this shape, serialized as JSON, was appended to
  * `<container>/<YYYY-MM-DD>.jsonl` (UTC day) in Azure Blob Storage.
  */
-export interface MetricsSample {
+export interface LegacyMetricsSample {
   /** ISO-8601 UTC timestamp, truncated to the minute the sample describes. */
   readonly timestamp: string;
   /** `os.hostname()` of the machine that collected this sample. */
