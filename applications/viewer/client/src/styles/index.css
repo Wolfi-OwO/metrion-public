@@ -1,0 +1,133 @@
+/* Self-hosted, not fetched from Google's font CDN. Such a request sets no
+   cookie but still transmits the visitor's IP to a US server on first paint,
+   before any consent - LG Muenchen I, 20.01.2022, Az. 3 O 17493/20 awarded
+   damages for exactly that. The rest of this pipeline refuses to record a
+   client IP anywhere; loading a font would hand one to a third party. */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+@import 'tailwindcss';
+
+/* Surfaces, text and accents are the same values network-visualizer uses, on
+   purpose: these are one person's tools and they should look like one house.
+   Every value below was measured with a WCAG contrast script, not eyeballed -
+   the numbers in the comments are the ratios against #0d1117 / #21262d. */
+@theme {
+  --color-bg-950: #0d1117;
+  --color-bg-900: #161b22;
+  --color-bg-800: #21262d;
+  --color-line: #30363d;
+  --color-line-strong: #444c56;
+
+  --color-ink: #e6edf3; /* 16.02 / 12.88 */
+  --color-ink-dim: #8b949e; /* 6.15 / 4.95 */
+  /* The floor. 4.54 on --color-bg-800, the lightest surface it ever sits on;
+     the more obvious #6e7681 measures 3.31 there and fails AA. */
+  --color-ink-muted: #868d97;
+
+  /* Series ramp. Ordered for maximum separation under deuteranopia first, so
+     the green/red pair - the one risky combination - only ever collides once a
+     chart is eight series deep. Colour is never the only channel: every series
+     is also named in the legend and stroke-dashed by index. All eight clear
+     4.5:1 on every surface here, so they are safe as label text too. */
+  --color-series-1: #58a6ff; /* 7.49 */
+  --color-series-2: #d29922; /* 7.50 */
+  --color-series-3: #bc8cff; /* 7.51 */
+  --color-series-4: #3fb950; /* 7.45 */
+  --color-series-5: #ffa657; /* 9.77 */
+  --color-series-6: #56d4dd; /* 10.69 */
+  --color-series-7: #f778ba; /* 7.53 */
+  --color-series-8: #f85149; /* 5.65 */
+
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* One curve, one duration, everywhere. A second easing would be a second
+     personality. */
+  --ease-instrument: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  /* Themes the parts of native widgets CSS cannot reach - the <select> popup
+     list, scrollbars. Without it GTK Chrome renders the option list white. */
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg-950);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers are read by comparison down a column, so they never reflow between
+   frames. Applied to the family, not per call site. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+button:not(:disabled),
+select {
+  cursor: pointer;
+}
+
+/* One visible focus treatment for every interactive element, including the
+   recharts keyboard layer, rather than per-component rings that drift apart.
+   The second selector is the range control: its radios are visually hidden, so
+   they cannot show a ring themselves and it is drawn on the label text beside
+   them. This lives here rather than on the element because the utility form
+   (`peer-focus-visible:outline-series-1`) set the width and offset but lost
+   the colour - measured as rgb(230,237,243), the inherited currentColor, not
+   the #58a6ff it asked for - which left this one control with a white ring and
+   every other control a blue one. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible + span {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--color-series-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+
+  /* Tailwind's `transition-colors` includes `outline-color`, so the ring was
+     fading in over 150ms: measured 400ms after focus it is rgb(88,166,255),
+     but measured immediately it is still the element's currentColor -
+     rgb(230,237,243) on the range control, rgb(139,148,158) on the buttons.
+     A focus ring is a keyboard user's cursor and it has to be there on the
+     keystroke, not a tenth of a second later, so the transition list is
+     narrowed here to the properties that may animate. */
+  transition-property: color, background-color, border-color;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The one piece of non-user-triggered motion in the app: a slow sweep across
+   the placeholder axis while an Azure Container Apps replica cold-starts. It
+   exists to say "still alive", which a static skeleton cannot. Under reduced
+   motion the rule above stops it and the elapsed-seconds counter carries the
+   same message. */
+@keyframes sweep {
+  from {
+    transform: translateX(-40%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+.sweep {
+  animation: sweep 2.4s var(--ease-instrument) infinite;
+}
