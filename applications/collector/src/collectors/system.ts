@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { CpuSample, DiskSample, MemorySample, NetworkSample } from '@vps-metrics/shared';
+import type { CpuSample, DiskSample, MemorySample, NetworkSample } from '@mona/shared';
 import { countVcpus, measureCpuUsagePercent, readLoadAverage } from '../lib/cpu-usage.js';
 import { readRootDiskUsage } from '../lib/disk-usage.js';
 import { readMemInfo } from '../lib/mem-info.js';

@@ -70,7 +70,7 @@ async function createAppendBlobIfMissing(
 }
 
 /**
- * Appends one line (a single `MetricsSample`, newline-terminated) to the
+ * Appends one line (one run's `MetricEnvelope[]`, newline-terminated) to the
  * day's blob, creating it first if this is the day's first write.
  * Append Block's 4MiB-per-call limit is nowhere close for one JSON line.
  */

@@ -1,4 +1,4 @@
-import type { ContainerSample } from '@vps-metrics/shared';
+import type { ContainerSample } from '@mona/shared';
 import { dockerGetJson } from '../lib/docker-socket.js';
 
 const MIB = 1024 * 1024;
