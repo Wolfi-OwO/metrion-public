@@ -130,31 +130,24 @@ ships, and this section becomes false.
 - **Where:** Azure Blob Storage, one container, in the operator's Azure
   subscription. The storage account name is deliberately not published: it is a
   globally unique DNS label and naming it hands over an enumeration target.
-- **Region: Australia Southeast (`australiasoutheast`, Victoria, Australia).**
-  Confirmed against the live subscription on 2026-09-07, not guessed. **This is
-  outside the EU/EEA**, so the data leaves the European Economic Area and is
-  stored in a third country for which the European Commission has issued no
-  adequacy decision.
-- **Chapter V DSGVO transfer position.** Chapter V governs transfers of
-  _personal data_. On the assessment in sections 2 and 3 no personal data of
-  any third party is processed here: the wire format has no free-text field,
-  `value` is always a number, and client IP addresses, user agents, request
-  paths and query strings are excluded structurally at four separate points.
-  What is stored is resource-usage telemetry about the operator's own machines
-  — hostnames, container names, the operator's own vhost names, and numbers.
-  On that basis Chapter V is not engaged and **no transfer mechanism is claimed
-  here: there is no Standard Contractual Clause, no adequacy decision and no
-  derogation being relied on, because none is needed for data that is not
-  personal data.**
+- **Region: West Europe (`westeurope`, Netherlands).** The metrics were stored
+  in Australia Southeast until 2026-09-08 and were migrated to West Europe on
+  that date, together with the ~90 days of history then held. The move was made
+  for latency - the same 9 MB day-blob took 24.4 s to read from Australia and
+  1.1 s from West Europe - and it removes a third-country transfer as a side
+  effect.
+- **Chapter V DSGVO transfer position.** None is needed: the data is stored
+  inside the EEA, so there is no transfer to a third country to justify. **No
+  Standard Contractual Clause is claimed and none is relied on.**
 
-  Stated plainly so the reasoning can be checked rather than trusted: this
-  position depends entirely on the "no personal data" assessment above holding.
-  If a future sender ingests anything that identifies a natural person — an
-  end-user identifier as a `resource`, say, or per-user request aggregates —
-  then that assessment fails, the transfer to Australia becomes a Chapter V
-  transfer with no mechanism behind it, and either the region or the mechanism
-  has to change before that sender is enabled. The ingest schema's charset and
-  shape restrictions make this harder but do not make it impossible.
+  For the record, because the earlier version of this document said otherwise:
+  between the first deployment and 2026-09-08 the storage was in Australia
+  Southeast, outside the EEA. Even then the position was that Chapter V governs
+  _personal data_ and that none of any third party is processed here - the wire
+  format has no free-text field, `value` is always a number, and client IP
+  addresses, user agents, request paths and query strings are excluded
+  structurally at four separate points. That assessment has not changed; the
+  question it answered simply no longer arises.
 
 - **How long:** an Azure Blob Lifecycle Management policy named
   `vps-metrics-retention-90d` deletes a blob **90 days after its last write**
