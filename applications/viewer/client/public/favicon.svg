@@ -1,6 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="4" fill="#0d1117"/>
-  <path d="M3 22 L9 22 L12 10 L16 26 L20 15 L23 22 L29 22"
-        fill="none" stroke="#58a6ff" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round"/>
+<!-- A stacked strip chart, which is literally what the app draws: three
+     tracks on one shared time axis. Bars rather than a polyline because at
+     16 px a 2 px stroke turns to mush while solid blocks stay readable, and
+     the three series colours are the app's own tokens, so the tab icon and
+     the charts are visibly the same product. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="mona">
+  <rect width="32" height="32" rx="7" fill="#0d1117" />
+  <rect x="6" y="6" width="20" height="1.5" rx="0.75" fill="#30363d" />
+
+  <g>
+    <rect x="6" y="10" width="4" height="3" rx="1.5" fill="#58a6ff" />
+    <rect x="11.5" y="10" width="7" height="3" rx="1.5" fill="#58a6ff" />
+    <rect x="20" y="10" width="6" height="3" rx="1.5" fill="#58a6ff" />
+  </g>
+  <g>
+    <rect x="6" y="15.5" width="9" height="3" rx="1.5" fill="#3fb950" />
+    <rect x="16.5" y="15.5" width="4" height="3" rx="1.5" fill="#3fb950" />
+    <rect x="22" y="15.5" width="4" height="3" rx="1.5" fill="#3fb950" />
+  </g>
+  <g>
+    <rect x="6" y="21" width="5" height="3" rx="1.5" fill="#d29922" />
+    <rect x="12.5" y="21" width="5" height="3" rx="1.5" fill="#d29922" />
+    <rect x="19" y="21" width="7" height="3" rx="1.5" fill="#d29922" />
+  </g>
 </svg>

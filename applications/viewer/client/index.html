@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="color-scheme" content="dark" />
+    <!-- Matches --color-bg-950, so the browser chrome on Android and the
+         iOS status bar do not frame the page in white. -->
+    <meta name="theme-color" content="#0d1117" />
+    <meta
+      name="description"
+      content="Minute-by-minute CPU, memory, disk, network and per-container metrics for my servers."
+    />
+    <!-- A link to this page should preview as the app, not as a bare URL.
+         Self-hosted image, for the same reason there is no font CDN below. -->
+    <meta property="og:title" content="mona" />
+    <meta
+      property="og:description"
+      content="Minute-by-minute CPU, memory, disk, network and per-container metrics for my servers."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/favicon.svg" />
     <!-- Nothing here loads from a third party: no font CDN, no analytics, no
          tag manager. The rest of this pipeline refuses to record a visitor's
          IP, and a script tag pointed elsewhere would hand one over. -->
