@@ -1,0 +1,103 @@
+name: Deploy
+
+# Only after CI has passed on main. A deploy that races the test run would
+# publish an image nobody has checked.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # A manual button, for redeploying the same commit after an infrastructure
+  # change that CI knows nothing about.
+  workflow_dispatch:
+
+# OIDC: GitHub mints a short-lived token that Azure trades for one of its own.
+# There is no client secret stored in this repository - the federated
+# credential on the `mona-deploy` identity only trusts this repo on `main`.
+permissions:
+  contents: read
+  id-token: write
+
+# A second push while a deploy is running should win, not queue behind it, but
+# never interrupt one mid-way: a half-updated revision is worse than a late one.
+concurrency:
+  group: deploy-mona-viewer
+  cancel-in-progress: false
+
+env:
+  REGISTRY: globalcr01.azurecr.io
+  IMAGE: mona-viewer
+  RESOURCE_GROUP: mona-rg
+  APP: mona-viewer
+
+jobs:
+  deploy:
+    # `workflow_run` fires for failures too, so the conclusion has to be checked
+    # explicitly or a red build would deploy itself.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # The version in package.json is the image tag, so a deployed revision can
+      # be traced back to a released version rather than to a commit sha nobody
+      # can read. The run number keeps the revision suffix unique when the same
+      # version is deployed twice.
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./applications/viewer/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "suffix=v${VERSION//./-}-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        run: |
+          az acr login -n globalcr01
+          # Built from the repository root: npm workspaces need the root
+          # manifest and lockfile.
+          docker build -f applications/viewer/Dockerfile \
+            -t "$REGISTRY/$IMAGE:${{ steps.version.outputs.version }}" \
+            -t "$REGISTRY/$IMAGE:latest" .
+          docker push "$REGISTRY/$IMAGE:${{ steps.version.outputs.version }}"
+          docker push "$REGISTRY/$IMAGE:latest"
+
+      - name: Deploy revision
+        run: |
+          az containerapp update -n "$APP" -g "$RESOURCE_GROUP" \
+            --image "$REGISTRY/$IMAGE:${{ steps.version.outputs.version }}" \
+            --revision-suffix "${{ steps.version.outputs.suffix }}"
+
+      # `az containerapp update` returns while the previous revision is still
+      # serving, so a check run immediately after it can pass against the code
+      # that was just replaced. Wait for a single active revision first.
+      - name: Wait for the handover
+        run: |
+          for _ in $(seq 1 60); do
+            ACTIVE=$(az containerapp revision list -n "$APP" -g "$RESOURCE_GROUP" \
+              --query "length([?properties.active])" -o tsv)
+            [ "$ACTIVE" = "1" ] && break
+            sleep 10
+          done
+
+      # A deploy that finishes is not a deploy that works. The resources call is
+      # the one that exercises the managed identity against real storage - the
+      # credential is not used until the first blob read, so boot proves nothing.
+      - name: Verify the running app
+        run: |
+          FQDN=$(az containerapp show -n "$APP" -g "$RESOURCE_GROUP" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          FROM=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+          TO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          curl -fsS -o /dev/null "https://$FQDN/api/v1/health/liveness"
+          curl -fsS -o /dev/null "https://$FQDN/"
+          curl -fsS -o /dev/null "https://$FQDN/impressum"
+          curl -fsS --max-time 180 "https://$FQDN/api/v1/resources?from=$FROM&to=$TO" > /dev/null
+          echo "https://$FQDN is live"
