@@ -46,7 +46,18 @@ export const metricsQuerySchema = refineRange(
       ...rangeShape,
       resource: z.string().min(1).max(200),
       subResource: z.string().min(1).max(200).optional(),
-      name: z.string().min(1).max(200),
+      /**
+       * Repeatable. `?name=cpu.usage&name=memory.used` returns both series
+       * from ONE blob scan; the client used to issue one request per metric
+       * name and each of those re-downloaded every day-blob in the range.
+       * Measured against the real deployment: 18 MB per scan pulled from
+       * Australia to West Europe, 36 metric names, ~27 s each - a five-minute
+       * page. `query parser: 'simple'` gives an array for a repeated key and a
+       * string for a single one, so both shapes have to be accepted here.
+       */
+      name: z
+        .union([z.string().min(1).max(200), z.array(z.string().min(1).max(200)).min(1).max(100)])
+        .transform((value) => (Array.isArray(value) ? value : [value])),
       stepSeconds: z.coerce.number().int().min(60).max(86_400).default(60),
     })
     .strict(),

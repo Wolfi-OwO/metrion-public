@@ -36,6 +36,11 @@ export interface SeriesResult {
   readonly unit: string | null;
   readonly stepSeconds: number;
   readonly points: SeriesPoint[];
+}
+
+/** What `GET /api/v1/metrics` returns: every requested name, from one scan. */
+export interface SeriesBatch {
+  readonly series: SeriesResult[];
   readonly skippedLines: number;
 }
 
@@ -103,23 +108,32 @@ export function fetchResources(
 export interface SeriesQuery {
   readonly resource: string;
   readonly subResource?: string | undefined;
-  readonly name: string;
+  readonly names: readonly string[];
   readonly from: Date;
   readonly to: Date;
   readonly stepSeconds: number;
 }
 
-export function fetchSeries(query: SeriesQuery, signal: AbortSignal): Promise<SeriesResult> {
+/**
+ * Every requested metric in ONE request.
+ *
+ * `name` is repeated rather than joined: sub-resource and metric names are
+ * free-form, so any delimiter would eventually appear inside a name. The
+ * server reads the day-blobs once and answers for all of them - it used to
+ * take a single name, which meant one 18 MB cross-region download per metric
+ * and a five-minute page for a host with 36 of them.
+ */
+export function fetchSeries(query: SeriesQuery, signal: AbortSignal): Promise<SeriesBatch> {
   const params = new URLSearchParams({
     resource: query.resource,
-    name: query.name,
     from: query.from.toISOString(),
     to: query.to.toISOString(),
     stepSeconds: String(query.stepSeconds),
   });
+  for (const name of query.names) params.append('name', name);
   // `subResource` is `.strict()`-validated upstream: sending it empty is a 400,
   // so an absent sub-resource means an absent parameter.
   if (query.subResource) params.set('subResource', query.subResource);
 
-  return getJson<SeriesResult>('/api/v1/metrics', params, signal);
+  return getJson<SeriesBatch>('/api/v1/metrics', params, signal);
 }

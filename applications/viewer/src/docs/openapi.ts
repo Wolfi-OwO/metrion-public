@@ -181,7 +181,10 @@ export function buildOpenApiDocument(): object {
               name: 'name',
               in: 'query',
               required: true,
-              schema: { type: 'string', example: 'cpu.usage' },
+              description:
+                'Repeatable. Pass it once per metric to get them all from a single scan of the day-blobs - one request costs one cross-region download, so asking for 36 metrics separately costs 36 of them.',
+              explode: true,
+              schema: { type: 'array', items: { type: 'string', example: 'cpu.usage' } },
             },
             {
               name: 'stepSeconds',
@@ -199,21 +202,30 @@ export function buildOpenApiDocument(): object {
                   schema: {
                     type: 'object',
                     properties: {
-                      resource: { type: 'string' },
-                      subResource: { type: 'string', nullable: true },
-                      name: { type: 'string' },
-                      unit: { type: 'string', nullable: true },
-                      stepSeconds: { type: 'integer' },
-                      points: {
+                      series: {
                         type: 'array',
+                        description: 'One entry per requested `name`, in the order asked for.',
                         items: {
                           type: 'object',
                           properties: {
-                            timestamp: { type: 'string', format: 'date-time' },
-                            value: { type: 'number' },
-                            count: {
-                              type: 'integer',
-                              description: 'Raw points the bucket average is over.',
+                            resource: { type: 'string' },
+                            subResource: { type: 'string', nullable: true },
+                            name: { type: 'string' },
+                            unit: { type: 'string', nullable: true },
+                            stepSeconds: { type: 'integer' },
+                            points: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  timestamp: { type: 'string', format: 'date-time' },
+                                  value: { type: 'number' },
+                                  count: {
+                                    type: 'integer',
+                                    description: 'Raw points the bucket average is over.',
+                                  },
+                                },
+                              },
                             },
                           },
                         },

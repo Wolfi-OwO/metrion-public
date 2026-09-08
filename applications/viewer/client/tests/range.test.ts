@@ -129,7 +129,6 @@ test('series are charted by unit, and a series with no points is not charted at 
         name: 'cpu.usage',
         unit: 'percent',
         stepSeconds: 60,
-        skippedLines: 0,
         points: [{ timestamp: at(0), value: 41.58, count: 1 }],
       },
       {
@@ -137,7 +136,6 @@ test('series are charted by unit, and a series with no points is not charted at 
         name: 'memory.used',
         unit: 'MiB',
         stepSeconds: 60,
-        skippedLines: 0,
         points: [{ timestamp: at(0), value: 3214, count: 1 }],
       },
       {
@@ -145,7 +143,6 @@ test('series are charted by unit, and a series with no points is not charted at 
         name: 'disk.root.usedPercent',
         unit: 'percent',
         stepSeconds: 60,
-        skippedLines: 0,
         points: [{ timestamp: at(1), value: 12, count: 1 }],
       },
       {
@@ -155,7 +152,6 @@ test('series are charted by unit, and a series with no points is not charted at 
         name: 'container.restarts',
         unit: null,
         stepSeconds: 60,
-        skippedLines: 0,
         points: [],
       },
     ],

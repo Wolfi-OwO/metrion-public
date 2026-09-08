@@ -23,7 +23,7 @@ export async function getMetricSeries(req: Request, res: Response): Promise<void
   const result = await getSeries({
     resource: query.resource,
     subResource: query.subResource,
-    name: query.name,
+    names: query.name,
     from: new Date(query.from),
     to: new Date(query.to),
     stepSeconds: query.stepSeconds,
