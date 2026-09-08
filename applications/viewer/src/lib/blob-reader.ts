@@ -95,7 +95,20 @@ export async function readDayBlobLines(day: string): Promise<string[]> {
   const blobClient = getContainerClient().getBlobClient(`${day}.jsonl`);
 
   try {
-    const buffer = await blobClient.downloadToBuffer(0, MAX_DAY_BLOB_BYTES);
+    // The real size has to be read first. `downloadToBuffer(0, count)` requests
+    // exactly `count` bytes and the SDK splits that into 4 MiB block requests,
+    // so a fixed 64 MiB count against a 2 MB blob asks for ranges starting past
+    // the end of it and Azure answers 416 InvalidRange - every read of every
+    // day failed that way in Azure while passing locally, because the no-arg
+    // form used in testing reads the size itself. Clamping keeps the cap doing
+    // its job (an oversized blob is still truncated) without ever requesting a
+    // range that does not exist. `getProperties` 404s for a missing blob, which
+    // the same handler below already treats as "no data for that day".
+    const { contentLength } = await blobClient.getProperties();
+    const size = contentLength ?? 0;
+    if (size === 0) return [];
+
+    const buffer = await blobClient.downloadToBuffer(0, Math.min(size, MAX_DAY_BLOB_BYTES));
     return buffer.toString('utf8').split('\n');
   } catch (error) {
     const statusCode = (error as { statusCode?: number }).statusCode;

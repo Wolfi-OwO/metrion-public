@@ -44,6 +44,12 @@ RUN npm ci --omit=dev --workspace @mona/viewer --include-workspace-root \
  && npm cache clean --force
 
 COPY --from=build /repo/applications/viewer/dist ./dist
+# `/app/package.json` is the workspace root manifest and has no `"type":
+# "module"`, so without this marker Node reparses every compiled file as ESM
+# after first failing to read it as CommonJS - it works, but it warns on every
+# boot and pays the reparse cost. Same trap, and same fix, as the collector's
+# deploy (see organizational/deployment-runbook.md).
+RUN echo '{"type":"module"}' > ./dist/package.json
 # The client's built assets, where `static-frontend.ts` looks for them: a
 # `public/` sibling of `dist/`.
 COPY --from=build /repo/applications/viewer/client/dist ./public
