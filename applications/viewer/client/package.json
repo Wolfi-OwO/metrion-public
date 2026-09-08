@@ -1,6 +1,6 @@
 {
   "name": "@mona/viewer-client",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "The charts. Reads the viewer's query API and draws one shared-time-axis strip chart per unit, so a CPU spike and a network spike line up on the same instant.",
   "type": "module",

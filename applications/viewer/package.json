@@ -1,6 +1,6 @@
 {
   "name": "@mona/viewer",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Reads the day-blobs the collector writes to Azure Blob Storage, serves the query API the charts run on, and accepts metrics from other senders over an authenticated ingest endpoint.",
   "type": "module",
