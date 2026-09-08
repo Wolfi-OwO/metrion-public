@@ -12,13 +12,14 @@ bereits `network-visualizer` und `nutrilens`.
 
 Phillip Kofler
 Software Engineer | Fullstack Developer
-Villach, Kärnten, Österreich
 
-**Bekannte Lücke (`TODO_STREET_ADDRESS`):** § 5 Abs 1 Z 1 ECG verlangt eine
-ladungsfähige Anschrift, veröffentlicht ist bisher nur der Ort. Nicht raten —
-die Veröffentlichung der vollständigen Adresse ist eine Entscheidung des
-Betreibers. Dieselbe Lücke ist in `nutrilens/IMPRESSUM.md` vermerkt und gilt
-hier unverändert.
+Oberrainer Straße 53b
+9586 Fürnitz
+Österreich
+
+Diese ladungsfähige Anschrift erfüllt § 5 Abs 1 Z 1 ECG. Sie steht bewusst
+nur hier: das Impressum ist die gesetzlich vorgeschriebene Offenlegung, und
+kein anderes Dokument dieses Repositories nennt sie.
 
 ## Kontakt
 
