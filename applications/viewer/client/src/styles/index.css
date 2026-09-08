@@ -131,3 +131,15 @@ input:focus-visible + span {
 .sweep {
   animation: sweep 2.4s var(--ease-instrument) infinite;
 }
+
+/* The indeterminate loading bar in the header. One request now covers every
+   metric, so there is no progress to report - this says "working" without
+   claiming a percentage it cannot know. */
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}

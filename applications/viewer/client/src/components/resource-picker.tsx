@@ -1,16 +1,21 @@
 import type { ResourceSummary } from '../api/client.ts';
 
 /**
- * Resource and sub-resource in one native `<select>`.
+ * Server first, then what runs on it.
  *
- * A native select over a custom menu because the browser already gives this
- * one keyboard support, type-ahead, a scrollable popup that escapes the
- * header, and correct behaviour on a phone - and `<optgroup>` expresses
- * exactly the shape of the data, a resource holding its sub-resources.
+ * Two controls, not one, because they answer two different questions: which
+ * machine am I looking at, and which part of it. The single flat list this
+ * replaced put `container:preussen-mongo` next to
+ * `requests:www.woofi-developments.at` in one alphabetical run, so finding an
+ * app meant reading past every request host.
  *
- * The value is an index pair rather than a joined string: sub-resources are
- * free-form (`container:preussen-mongo`, `requests:example.org`), so any
- * delimiter chosen here would eventually appear inside a name.
+ * Sub-resources carry their kind as a `type:name` prefix (`container:`,
+ * `requests:`, and the bare `collector`), which is exactly an `<optgroup>`:
+ * the prefix becomes the group heading and the option shows the plain name.
+ *
+ * Native `<select>` over a custom menu because the browser already gives this
+ * keyboard support, type-ahead, a popup that escapes the header, and correct
+ * behaviour on a phone.
  */
 
 export interface Selection {
@@ -18,8 +23,18 @@ export interface Selection {
   readonly subResource?: string | undefined;
 }
 
-function encode(resourceIndex: number, subIndex: number): string {
-  return `${resourceIndex}:${subIndex}`;
+/** Heading for each prefix, in the order the groups should appear. */
+const KIND_LABELS: ReadonlyArray<readonly [prefix: string, label: string]> = [
+  ['container:', 'Apps'],
+  ['requests:', 'Request hosts'],
+];
+
+const SELECT_CLASS =
+  'max-w-[16rem] truncate rounded-sm border border-line-strong bg-bg-800 px-2 py-1 font-mono text-[12px] text-ink transition-colors duration-150 hover:border-ink-muted';
+
+/** `container:preussen-mongo` -> `preussen-mongo`. */
+function plainName(subResource: string, prefix: string): string {
+  return subResource.slice(prefix.length);
 }
 
 export function ResourcePicker({
@@ -31,45 +46,77 @@ export function ResourcePicker({
   value: Selection;
   onChange: (next: Selection) => void;
 }) {
-  const resourceIndex = resources.findIndex((entry) => entry.resource === value.resource);
-  const subIndex =
-    value.subResource === undefined
-      ? -1
-      : (resources[resourceIndex]?.subResources.indexOf(value.subResource) ?? -1);
+  const entry = resources.find((candidate) => candidate.resource === value.resource);
+  const subResources = entry?.subResources ?? [];
+
+  const grouped = KIND_LABELS.map(([prefix, label]) => ({
+    prefix,
+    label,
+    items: subResources.filter((sub) => sub.startsWith(prefix)),
+  })).filter((group) => group.items.length > 0);
+
+  // Anything with no recognised prefix - `collector` today - still has to be
+  // reachable, or a sub-resource would silently disappear from the picker the
+  // moment a sender invents a new kind.
+  const ungrouped = subResources.filter(
+    (sub) => !KIND_LABELS.some(([prefix]) => sub.startsWith(prefix)),
+  );
 
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="resource-picker" className="text-[12px] text-ink-dim">
-        Watching
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <label htmlFor="server-picker" className="text-[12px] text-ink-dim">
+        Server
       </label>
       <select
-        id="resource-picker"
-        value={encode(resourceIndex, subIndex)}
-        onChange={(event) => {
-          const [nextResource, nextSub] = event.target.value.split(':').map(Number);
-          const resource = resources[nextResource ?? 0];
-          if (!resource) return;
-          onChange({
-            resource: resource.resource,
-            subResource: nextSub === -1 ? undefined : resource.subResources[nextSub ?? 0],
-          });
-        }}
-        className="max-w-[18rem] truncate rounded-sm border border-line-strong bg-bg-800 px-2 py-1 font-mono text-[12px] text-ink transition-colors duration-150 hover:border-ink-muted"
+        id="server-picker"
+        value={value.resource}
+        onChange={(event) => onChange({ resource: event.target.value })}
+        className={SELECT_CLASS}
       >
-        {resources.map((entry, entryIndex) => (
-          <optgroup key={entry.resource} label={entry.resource}>
-            {/* The resource name is repeated inside each option on purpose.
-                A closed select shows the option's text and NOT its optgroup
-                label, so an option reading just "overall" would leave the
-                header unable to say which machine is on screen. */}
-            <option value={encode(entryIndex, -1)}>{entry.resource}</option>
-            {entry.subResources.map((subResource, index) => (
-              <option key={subResource} value={encode(entryIndex, index)}>
-                {entry.resource} / {subResource}
+        {resources.map((candidate) => (
+          <option key={candidate.resource} value={candidate.resource}>
+            {candidate.resource}
+          </option>
+        ))}
+      </select>
+
+      <label htmlFor="scope-picker" className="text-[12px] text-ink-dim">
+        Showing
+      </label>
+      <select
+        id="scope-picker"
+        value={value.subResource ?? ''}
+        onChange={(event) =>
+          onChange({
+            resource: value.resource,
+            subResource: event.target.value === '' ? undefined : event.target.value,
+          })
+        }
+        className={SELECT_CLASS}
+      >
+        {/* The whole machine: the host-level envelope, which is what the
+            collector writes with no sub-resource at all. */}
+        <option value="">Whole server</option>
+
+        {grouped.map((group) => (
+          <optgroup key={group.prefix} label={group.label}>
+            {group.items.map((sub) => (
+              <option key={sub} value={sub}>
+                {plainName(sub, group.prefix)}
               </option>
             ))}
           </optgroup>
         ))}
+
+        {ungrouped.length > 0 && (
+          <optgroup label="Other">
+            {ungrouped.map((sub) => (
+              <option key={sub} value={sub}>
+                {sub}
+              </option>
+            ))}
+          </optgroup>
+        )}
       </select>
     </div>
   );

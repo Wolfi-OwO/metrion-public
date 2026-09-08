@@ -86,7 +86,7 @@ export default function App() {
     return newest;
   }, [series.results]);
 
-  const skippedLines = (resources.data?.skippedLines ?? 0) + (series.results[0]?.skippedLines ?? 0);
+  const skippedLines = (resources.data?.skippedLines ?? 0) + series.skippedLines;
   const presetIndex = RANGE_PRESETS.indexOf(preset);
   const widerPreset = RANGE_PRESETS[presetIndex + 1] ?? null;
   const selectionLabel = active
@@ -101,7 +101,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-bg-900">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-2.5 sm:px-8">
           <h1 className="font-mono text-[15px] font-semibold tracking-tight text-ink">mona</h1>
@@ -127,22 +127,17 @@ export default function App() {
           </div>
         </div>
 
-        {/* Determinate, because the count is known: eighteen metric names mean
-            eighteen requests. A determinate bar is the difference between
-            "this is going to take a moment" and "this may never end". */}
-        {(series.phase === 'loading' || series.phase === 'waking') && series.total > 0 && (
+        {/* Indeterminate now: every metric arrives in one request, so there is
+            no count to report against - the honest signal is "working", not a
+            fake percentage. It was determinate when the page issued one
+            request per metric name. */}
+        {(series.phase === 'loading' || series.phase === 'waking') && (
           <div
-            className="h-px w-full bg-bg-800"
+            className="h-px w-full overflow-hidden bg-bg-800"
             role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={series.total}
-            aria-valuenow={series.loaded}
             aria-label="Loading metrics"
           >
-            <div
-              className="h-px bg-series-1 transition-[width] duration-300 ease-[var(--ease-instrument)]"
-              style={{ width: `${(series.loaded / series.total) * 100}%` }}
-            />
+            <div className="h-px w-1/3 animate-[loading-sweep_1.4s_ease-in-out_infinite] bg-series-1" />
           </div>
         )}
       </header>
@@ -151,40 +146,55 @@ export default function App() {
           component is a new type on every render, so React would unmount and
           rebuild the whole chart tree - and recharts' hover state with it -
           every time the header ticks. */}
-      <main>{renderBody()}</main>
+      <main className="flex-1">{renderBody()}</main>
 
       {/* Outside `renderBody` deliberately. Every branch in there can replace
           the whole page - a cold start, an empty range, a dead API - and § 5
           ECG wants the Impressum "leicht und unmittelbar zugaenglich", which it
           would not be if reaching it depended on the metrics API answering.
           Plain anchors, not routes: these are three server-rendered documents,
-          not screens of this app, and a full page load is the correct
-          behaviour. See the hand-off note for what has to serve them. */}
-      <footer className="border-t border-line px-5 py-4 sm:px-8">
-        <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
-          {/* The Impressum keeps its German name: it is the word an Austrian
-              reader looks for, and translating it would hide it. `lang` so a
-              screen reader does not read it with an English voice. */}
-          <a
-            lang="de"
-            href="/impressum"
-            className="text-ink-dim underline underline-offset-2 transition-colors duration-150 hover:text-ink"
-          >
-            Impressum
-          </a>
-          <a
-            href="/privacy"
-            className="text-ink-dim underline underline-offset-2 transition-colors duration-150 hover:text-ink"
-          >
-            Privacy
-          </a>
-          <a
-            href="/terms"
-            className="text-ink-dim underline underline-offset-2 transition-colors duration-150 hover:text-ink"
-          >
-            Terms of use
-          </a>
-        </nav>
+          not screens of this app, so a full page load is correct.
+
+          `mt-auto` inside the flex column pins it to the bottom of the viewport
+          when the page is short, instead of leaving it floating under a single
+          chart. Padding, border and type match the header so the page has one
+          frame rather than two different ones. */}
+      <footer className="mt-auto border-t border-line bg-bg-900 px-5 py-3 sm:px-8">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[11px] text-ink-muted">
+          <span>© {new Date().getFullYear()} Phillip Kofler</span>
+          <span aria-hidden="true" className="text-line-strong">
+            ·
+          </span>
+          <span>v{__APP_VERSION__}</span>
+
+          <nav aria-label="Legal" className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* The Impressum keeps its German name: it is the word an Austrian
+                reader looks for, and translating it would hide it. `lang` so a
+                screen reader does not read it with an English voice. */}
+            <a
+              lang="de"
+              href="/impressum"
+              className="text-ink-dim transition-colors duration-150 hover:text-ink"
+            >
+              Impressum
+            </a>
+            <span aria-hidden="true" className="text-line-strong">
+              ,
+            </span>
+            <a
+              href="/privacy"
+              className="text-ink-dim transition-colors duration-150 hover:text-ink"
+            >
+              Privacy
+            </a>
+            <span aria-hidden="true" className="text-line-strong">
+              ,
+            </span>
+            <a href="/terms" className="text-ink-dim transition-colors duration-150 hover:text-ink">
+              Terms of use
+            </a>
+          </nav>
+        </div>
       </footer>
     </div>
   );
@@ -243,9 +253,7 @@ export default function App() {
             sample - never a zero. Shaded columns are stretches where nothing at all was recorded.
           </p>
           {(series.phase === 'loading' || series.phase === 'waking') && (
-            <p className="mt-1 text-ink-dim">
-              Loaded {series.loaded} of {series.total} metrics.
-            </p>
+            <p className="mt-1 text-ink-dim">Reading the day-blobs for this window.</p>
           )}
           {skippedLines > 0 && (
             <p className="mt-1 text-series-2">
