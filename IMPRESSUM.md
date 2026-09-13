@@ -1,4 +1,4 @@
-# Impressum — mona
+# Impressum — metrion
 
 Offenlegung gemäß **§ 5 ECG** und **§ 25 MedienG**, Österreich.
 
@@ -34,7 +34,7 @@ Web: <https://github.com/Wolfi-OwO>
 - Gewerbe: [N/A_UNLESS_HELD]
 - WKO-Mitgliedschaft: [N/A]
 
-Wird mona jemals entgeltlich oder gewerblich betrieben, kommen nach § 5 Abs 1
+Wird metrion jemals entgeltlich oder gewerblich betrieben, kommen nach § 5 Abs 1
 ECG Gewerbewortlaut, Gewerbebehörde, UID-Nummer und WKO-Zugehörigkeit hinzu —
 das ist dann keine Formalie mehr, sondern Pflicht.
 
@@ -49,7 +49,7 @@ Phillip Kofler.
 
 ## Zweck des Angebots (§ 25 Abs 4 MedienG)
 
-mona ist eine Infrastruktur-Überwachung für die eigenen Server des Betreibers:
+metrion ist eine Infrastruktur-Überwachung für die eigenen Server des Betreibers:
 minütliche CPU-, RAM-, Festplatten-, Netzwerk- und Container-Kennzahlen, eine
 öffentliche Lese-API, eine API-Dokumentation unter `/docs` und eine
 Diagramm-Oberfläche. Kein redaktionelles Angebot, keine Werbung, kein

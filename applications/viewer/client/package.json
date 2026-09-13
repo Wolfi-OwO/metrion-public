@@ -1,8 +1,8 @@
 {
-  "name": "@mona/viewer-client",
+  "name": "@metrion/viewer-client",
   "version": "0.3.0",
   "private": true,
-  "description": "The charts. Reads the viewer's query API and draws one shared-time-axis strip chart per unit, so a CPU spike and a network spike line up on the same instant.",
+  "description": "The product frontend: a landing page, a project dashboard, per-project metrics (one shared-time-axis strip chart per unit) and API-key management, talking to the viewer's own auth/projects/metrics API.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -16,8 +16,10 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
+    "openid-client": "^6.8.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-router-dom": "^7.18.3",
     "recharts": "^3.10.1"
   },
   "devDependencies": {

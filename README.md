@@ -1,4 +1,4 @@
-# mona
+# metrion
 
 The server supervision platform for my infrastructure. Today that is one
 metrics pipeline for my Contabo VPS: a collector that reads CPU, RAM,
@@ -60,7 +60,7 @@ one origin, no CORS in production and one thing to deploy.
 
 ```
 applications/
-├── collector/     the minute-by-minute collector - this project
+├── agent/         the minute-by-minute collector - this project
 └── viewer/        the Azure Container App that reads the data back:
                     read API, /docs, ingest endpoint, and client/ (React
                     charts)
@@ -77,14 +77,14 @@ organizational/    the deployment runbook
 ```bash
 npm install
 npm run typecheck
-npm test          # every workspace: collector, viewer, client
+npm test          # every workspace: agent, viewer, client
 npm run lint && npm run format:check
 ```
 
 Run the collector locally without a real Azure SAS token:
 
 ```bash
-cd applications/collector
+cd applications/agent
 cp .env.example .env   # then set DRY_RUN=true
 node --env-file=.env dist/main.js
 ```
@@ -96,7 +96,7 @@ one, because booting without it would expose an unauthenticated write path:
 cd applications/viewer
 cp .env.example .env
 INGEST_TOKEN=$(openssl rand -hex 32) npm start   # http://127.0.0.1:8080
-npm --workspace @mona/viewer-client run dev      # the client, on Vite
+npm --workspace @metrion/viewer-client run dev   # the client, on Vite
 ```
 
 Or build the whole thing as the single image that is actually deployed.
@@ -104,8 +104,8 @@ Note it builds from the repository root, because npm workspaces need the
 root manifest and lockfile:
 
 ```bash
-docker build -f applications/viewer/Dockerfile -t mona-viewer .
-docker run --rm -p 8080:8080 -e INGEST_TOKEN=dummy mona-viewer
+docker build -f applications/viewer/Dockerfile -t metrion-viewer .
+docker run --rm -p 8080:8080 -e INGEST_TOKEN=dummy metrion-viewer
 ```
 
 ## Security

@@ -1,0 +1,24 @@
+/**
+ * The only place `process.env` is read. Everything else imports `config`.
+ *
+ * No `DATABASE_URL` entry here on purpose: `@metrion/db`'s `createPool()`
+ * already reads it itself, with its own local-dev fallback matching
+ * `docker-compose.dev.yml` - duplicating that read here would just be a
+ * second place for the default to drift from the one `@metrion/db` owns.
+ *
+ * No API-key env var either, unlike the viewer's old `INGEST_TOKEN`: auth
+ * here is per-project and lives in the `api_keys` table (ADR 0005), not one
+ * shared secret this process has to be booted with.
+ */
+export const config = {
+  port: Number(process.env['PORT']) || 8090,
+  nodeEnv: process.env['NODE_ENV'] ?? 'development',
+  /** pino level: trace/debug/info/warn/error/fatal/silent. */
+  logLevel: process.env['LOG_LEVEL'] ?? 'info',
+
+  /** Requests per window per API key on the ingest endpoint - never per IP, see ADR 0005. */
+  ingestRateLimitMax: Number(process.env['INGEST_RATE_LIMIT_MAX']) || 120,
+  ingestRateLimitWindowMs: Number(process.env['INGEST_RATE_LIMIT_WINDOW_MS']) || 60_000,
+} as const;
+
+export const isProduction = config.nodeEnv === 'production';

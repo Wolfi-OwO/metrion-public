@@ -138,7 +138,7 @@ export function MetricChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={group.rows}
-            syncId="mona-timeline"
+            syncId="metrion-timeline"
             // `accessibilityLayer` makes the chart a focusable
             // role="application" the arrow keys walk through - and, on its
             // own, an unnamed one: four tab stops that announce "application"

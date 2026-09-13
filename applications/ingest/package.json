@@ -1,0 +1,29 @@
+{
+  "name": "@metrion/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One authenticated HTTP endpoint any application in any language can POST metrics to. Per-project API key auth resolves tenancy (docs/adr/0005-api-key-determines-tenancy.md); writes go straight to the TimescaleDB hypertable @metrion/db migrates (docs/adr/0004-postgres-timescaledb-over-append-blob.md). No SDK required.",
+  "type": "module",
+  "main": "./dist/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "start": "node dist/main.js",
+    "test": "npm run build && node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@metrion/db": "*",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.0.0",
+    "pino": "^9.14.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@metrion/shared": "*",
+    "@types/express": "^4.17.21",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,25 @@
+services:
+  # Pinned tag, not `:latest` - this is the exact image and tag the
+  # production deploy on the Contabo VPS runs, per
+  # docs/adr/0004-postgres-timescaledb-over-append-blob.md. The image ships
+  # the TSL community edition (compression, continuous aggregates,
+  # add_retention_policy), unlike managed Azure Postgres's Apache-2 build.
+  db:
+    image: timescale/timescaledb-ha:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: metrion
+      POSTGRES_PASSWORD: metrion
+      POSTGRES_DB: metrion
+    ports:
+      - '5432:5432'
+    volumes:
+      - metrion-db-data:/home/postgres/pgdata/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U metrion -d metrion']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  metrion-db-data:

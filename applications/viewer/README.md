@@ -1,11 +1,11 @@
 # viewer
 
 The Azure Container App (`minReplicas: 0`, `maxReplicas: 1`) that reads the
-day-blobs `applications/collector` writes to `<YYYY-MM-DD>.jsonl` in Azure
+day-blobs `applications/agent` writes to `<YYYY-MM-DD>.jsonl` in Azure
 Blob Storage and serves them. The collector never talks to this app - it
 writes to the blob directly (see the root README and
 `docs/adr/0001-*.md` for why). That container is still named `vps-metrics`
-even though the repo is now mona - see "Why the server still says
+even though the repo is now metrion - see "Why the server still says
 vps-metrics" in `organizational/deployment-runbook.md`.
 
 This is also the one place the planned overload alarm and the
@@ -14,19 +14,19 @@ This is also the one place the planned overload alarm and the
 
 ## Endpoints
 
-| Path                                   | Auth   | What                                                             |
-| -------------------------------------- | ------ | ---------------------------------------------------------------- |
-| `GET /api/v1/health/liveness`          | none   | Liveness probe. Exempt from the rate limiter.                    |
-| `GET /api/v1/resources`                | none   | Distinct resources, sub-resources and metric names in a range.   |
-| `GET /api/v1/metrics`                  | none   | One downsampled series. `from`/`to` required, at most 31 days.   |
-| `POST /api/v1/ingest`                  | bearer | Append envelopes, for senders with no blob SAS. Rate limited.    |
-| `GET /openapi.json`, `/docs`           | none   | The OpenAPI document and Swagger UI, generated from the schemas. |
-| `GET /impressum`, `/privacy`, `/terms` | none   | The legal documents, rendered as HTML.                           |
-| `GET /*`                               | none   | The React client, when its built assets are present.             |
+| Path                                   | Auth | What                                                             |
+| -------------------------------------- | ---- | ---------------------------------------------------------------- |
+| `GET /api/v1/health/liveness`          | none | Liveness probe. Exempt from the rate limiter.                    |
+| `GET /api/v1/resources`                | none | Distinct resources, sub-resources and metric names in a range.   |
+| `GET /api/v1/metrics`                  | none | One downsampled series. `from`/`to` required, at most 31 days.   |
+| `GET /openapi.json`, `/docs`           | none | The OpenAPI document and Swagger UI, generated from the schemas. |
+| `GET /impressum`, `/privacy`, `/terms` | none | The legal documents, rendered as HTML.                           |
+| `GET /*`                               | none | The React client, when its built assets are present.             |
 
 The read endpoints are public by decision: this is aggregate resource usage
-of my own machines, with no personal data in it. Only the write path is
-authenticated.
+of my own machines, with no personal data in it. Writing metrics is the
+separate `@metrion/ingest` service's job (`applications/ingest`), not this
+app's - see its own README and `docs/adr/0005-api-key-determines-tenancy.md`.
 
 ## Layout
 
@@ -38,21 +38,17 @@ src/
 ├── handlers/           request in, response out
 ├── services/           the in-memory aggregation over the day-blobs
 ├── schemas/            zod - validation AND the source of the OpenAPI spec
-├── lib/                blob reader/writer, legacy adapter, markdown
-├── middlewares/        auth, validation, errors
+├── lib/                blob reader, legacy adapter, markdown
+├── middlewares/        validation, errors
 └── static-frontend.ts  serves client/dist, never shadowing an API route
 client/                 the React charts client (its own workspace)
 ```
 
 ## Running it
 
-`INGEST_TOKEN` is required - the app refuses to start without one, because
-booting without it would expose an unauthenticated write path to the same
-blobs the collector writes.
-
 ```bash
 cp .env.example .env
-INGEST_TOKEN=$(openssl rand -hex 32) npm start
+npm start
 npm test
 ```
 

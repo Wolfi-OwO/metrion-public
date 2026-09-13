@@ -34,6 +34,7 @@ export interface SeriesRequest {
   readonly names: readonly string[];
   readonly range: TimeRange;
   readonly stepSeconds: number;
+  readonly projectId?: string | undefined;
 }
 
 const IDLE: SeriesLoad = {
@@ -57,6 +58,7 @@ export function useSeries(request: SeriesRequest | null, attempt: number): Serie
         request.range.from.toISOString(),
         request.range.to.toISOString(),
         request.stepSeconds,
+        request.projectId ?? '',
       ])
     : '';
 
@@ -92,6 +94,7 @@ export function useSeries(request: SeriesRequest | null, attempt: number): Serie
         from: request.range.from,
         to: request.range.to,
         stepSeconds: request.stepSeconds,
+        projectId: request.projectId,
       },
       controller.signal,
     )

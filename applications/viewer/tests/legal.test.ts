@@ -4,8 +4,22 @@ import test, { after, before } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 
-process.env.INGEST_TOKEN = 'test-token-not-a-real-secret';
-delete process.env.AZURE_STORAGE_ACCOUNT;
+// Set, not connected to: `config/index.ts`'s `requireEnv` only checks that
+// this is present, and legal-document rendering never touches the pool
+// `lib/db.ts` builds lazily from it.
+process.env.DATABASE_URL = 'postgres://bogus:bogus@127.0.0.1:1/bogus';
+
+// The rest are all `requireEnv` presence checks too (issue #7, Task 6) -
+// legal-document rendering touches none of the auth machinery they gate.
+process.env.CORS_ALLOWED_ORIGINS = 'https://example.test';
+process.env.PUBLIC_BASE_URL = 'https://viewer.example.test';
+process.env.SESSION_SECRET = 'legal-test-session-secret';
+process.env.OAUTH_GOOGLE_CLIENT_ID = 'legal-test';
+process.env.OAUTH_GOOGLE_CLIENT_SECRET = 'legal-test';
+process.env.OAUTH_MICROSOFT_CLIENT_ID = 'legal-test';
+process.env.OAUTH_MICROSOFT_CLIENT_SECRET = 'legal-test';
+process.env.OAUTH_GITHUB_CLIENT_ID = 'legal-test';
+process.env.OAUTH_GITHUB_CLIENT_SECRET = 'legal-test';
 
 const { app } = await import('../dist/main.js');
 const { renderMarkdown } = await import('../dist/lib/markdown.js');

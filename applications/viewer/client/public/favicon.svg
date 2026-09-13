@@ -3,7 +3,7 @@
      16 px a 2 px stroke turns to mush while solid blocks stay readable, and
      the three series colours are the app's own tokens, so the tab icon and
      the charts are visibly the same product. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="mona">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="metrion">
   <rect width="32" height="32" rx="7" fill="#0d1117" />
   <rect x="6" y="6" width="20" height="1.5" rx="0.75" fill="#30363d" />
 

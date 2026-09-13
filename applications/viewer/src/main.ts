@@ -7,14 +7,26 @@ import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import { config } from './config/index.js';
 import { errorHandler, notFound } from './middlewares/error.js';
+import {
+  resolveProjectIdsFromSession,
+  setProjectIdsResolver,
+} from './middlewares/project-scope.js';
 import { LEGAL_PATHS } from './routes/legal.routes.js';
 import { routes } from './routes/index.js';
 import { mountFrontend } from './static-frontend.js';
 
+// The seam `middlewares/project-scope.ts` was built for (issue #7, Task 6):
+// `GET /api/v1/metrics` and `/resources` now scope to the calling session's
+// own projects instead of always answering empty. `tests/metrics.test.ts`
+// still calls `setProjectIdsResolver` itself to override this for its
+// two-project leakage proof - the last call before a request wins, and a
+// test file's own `before()` runs after this module-level line.
+setProjectIdsResolver(resolveProjectIdsFromSession);
+
 /**
  * The whole startup file: app at module scope, then `listen` only when this
  * file is the entrypoint - the same `isMainModule` shape
- * `applications/collector/src/main.ts` already uses, so a test can import
+ * `applications/agent/src/main.ts` already uses, so a test can import
  * `app` and drive it over a real socket without a second process. No
  * `createApp()` factory: there is exactly one app.
  */
@@ -22,8 +34,8 @@ export const app = express();
 
 // Azure Container Apps terminates TLS at its ingress and forwards plain HTTP.
 // `1` trusts exactly that one hop so `req.protocol` is honest. It deliberately
-// does NOT make us read a client IP: the ingest rate limiter keys by token and
-// the request logger below never serializes an address.
+// does NOT make us read a client IP: the request logger below never
+// serializes an address.
 app.set('trust proxy', 1);
 
 // Express 4 parses query strings with `qs` by default. Every query parameter
@@ -41,16 +53,17 @@ app.set('query parser', 'simple');
 
 app.use(helmet());
 
-// No `credentials`, so no cookie or Authorization header is ever sent by a
-// browser on the strength of this header alone - a caller still has to hold
-// the ingest token. `origin` narrows to the configured allowlist when there is
-// one; unset it stays `*`, which is the honest answer for a read API that is
-// public by decision. `methods` is spelled out because the default advertises
-// PUT, PATCH and DELETE, none of which this app implements.
+// `credentials: true` and a real allowlist, not `*` - `GET /api/v1/me` and
+// the project/key endpoints now read a session cookie (issue #7, Task 6), so
+// an unrestricted origin would let a page nobody owns ride a signed-in
+// visitor's cookie. `config.corsAllowedOrigins` is required
+// (`config/index.ts`); there is no `*` fallback left to reach for. `methods`
+// now includes DELETE for `DELETE /api/v1/keys/:id`.
 app.use(
   cors({
-    origin: config.corsAllowedOrigins.length > 0 ? config.corsAllowedOrigins : '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
+    origin: config.corsAllowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type'],
   }),
 );

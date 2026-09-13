@@ -6,14 +6,14 @@ import { z } from 'zod';
  */
 
 /**
- * The cap that keeps the in-memory blob scan bounded. An unbounded range is
- * the one input that turns an O(days) scan into a request that never returns,
- * so `from`/`to` are required rather than defaulted - a caller who forgets
- * them gets a 400 naming the field, not a silent full-history scan.
+ * `from`/`to` stay required rather than defaulted - a caller who forgets them
+ * gets a 400 naming the field, not a silent all-time query - but there is no
+ * upper bound on the range any more. The old 31-day cap existed to keep the
+ * in-memory blob scan bounded (an O(days) walk with no index); a range query
+ * against an indexed hypertable, falling back to the `metrics_hourly`
+ * continuous aggregate past 7 days (`services/metrics-service.ts`), has no
+ * equivalent failure mode a query-string cap needs to guard against.
  */
-export const MAX_RANGE_DAYS = 31;
-const MAX_RANGE_MS = MAX_RANGE_DAYS * 24 * 60 * 60 * 1000;
-
 const isoDate = z.iso.datetime({ offset: true });
 
 const rangeShape = {
@@ -21,19 +21,26 @@ const rangeShape = {
   to: isoDate,
 };
 
+/**
+ * Absent means "every project the caller owns" (`req.projectIds` as-is,
+ * `middlewares/project-scope.ts`'s existing behaviour) - present means "just
+ * this one", checked against that same list in the handler, never trusted
+ * from the query string on its own. Only shape validation lives here; a
+ * well-formed id that is not the caller's own is a 404 the handler raises,
+ * not something a schema can know.
+ */
+const projectIdShape = { projectId: z.uuid().optional() };
+
 function refineRange<T extends { from: string; to: string }>(schema: z.ZodType<T>) {
-  return schema
-    .refine((value) => Date.parse(value.from) <= Date.parse(value.to), {
-      path: ['to'],
-      message: '`to` must not be earlier than `from`.',
-    })
-    .refine((value) => Date.parse(value.to) - Date.parse(value.from) <= MAX_RANGE_MS, {
-      path: ['to'],
-      message: `The range must not exceed ${MAX_RANGE_DAYS} days.`,
-    });
+  return schema.refine((value) => Date.parse(value.from) <= Date.parse(value.to), {
+    path: ['to'],
+    message: '`to` must not be earlier than `from`.',
+  });
 }
 
-export const resourcesQuerySchema = refineRange(z.object(rangeShape).strict());
+export const resourcesQuerySchema = refineRange(
+  z.object({ ...rangeShape, ...projectIdShape }).strict(),
+);
 
 /**
  * `stepSeconds` is the downsampling bucket width. Floored at the collector's
@@ -44,16 +51,20 @@ export const metricsQuerySchema = refineRange(
   z
     .object({
       ...rangeShape,
+      ...projectIdShape,
       resource: z.string().min(1).max(200),
       subResource: z.string().min(1).max(200).optional(),
       /**
        * Repeatable. `?name=cpu.usage&name=memory.used` returns both series
-       * from ONE blob scan; the client used to issue one request per metric
-       * name and each of those re-downloaded every day-blob in the range.
-       * Measured against the real deployment: 18 MB per scan pulled from
-       * Australia to West Europe, 36 metric names, ~27 s each - a five-minute
-       * page. `query parser: 'simple'` gives an array for a repeated key and a
-       * string for a single one, so both shapes have to be accepted here.
+       * from ONE round trip; the client used to issue one request per metric
+       * name against the old blob-backed endpoint, and each of those
+       * re-downloaded every day-blob in the range. Measured against that
+       * deployment: 18 MB per scan pulled from Australia to West Europe, 36
+       * metric names, ~27 s each - a five-minute page. Batching survives the
+       * move to Postgres because the same reasoning applies to a query: one
+       * `name = ANY($n)` beats 36 separate round trips. `query parser:
+       * 'simple'` gives an array for a repeated key and a string for a single
+       * one, so both shapes have to be accepted here.
        */
       name: z
         .union([z.string().min(1).max(200), z.array(z.string().min(1).max(200)).min(1).max(100)])

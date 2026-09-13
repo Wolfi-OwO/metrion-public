@@ -1,6 +1,6 @@
 # Terms of Use (Nutzungsbedingungen)
 
-**mona — server supervision platform**
+**metrion — server supervision platform**
 Effective: 2026-09-07
 
 Operator: Phillip Kofler, Villach, Kärnten, Österreich — see `IMPRESSUM.md`.
@@ -75,7 +75,7 @@ existing sender at once; there is exactly one valid token at a time.
 
 ## 4. No warranty, no availability promise
 
-mona is provided **as is**. It runs with `minReplicas: 0`, so the first request
+metrion is provided **as is**. It runs with `minReplicas: 0`, so the first request
 after an idle period wakes a container and is slow. There is no uptime
 commitment, no support obligation, and maintenance may happen without notice.
 

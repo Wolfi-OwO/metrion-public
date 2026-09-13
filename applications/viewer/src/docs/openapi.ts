@@ -1,26 +1,12 @@
-import { z } from 'zod';
-import type { ZodType } from 'zod';
-import { ingestBodySchema } from '../schemas/ingest.schemas.js';
-import { MAX_RANGE_DAYS } from '../schemas/metrics.schemas.js';
-
 /**
  * The OpenAPI 3.0 document served at `/openapi.json` and rendered at `/docs`.
  *
- * The ingest request body comes from the same zod schema
- * `middlewares/validate.ts` enforces at runtime, so the published contract
- * cannot drift from what the endpoint accepts. Query parameters and response
- * shapes are described here because OpenAPI wants them per-parameter rather
- * than as one object schema.
+ * Query parameters and response shapes are described here because OpenAPI
+ * wants them per-parameter rather than as one object schema. No zod-derived
+ * request body schema here any more - `POST /api/v1/ingest` (the one route
+ * that had one) moved to `@metrion/ingest`, whose own `docs/openapi.ts` keeps
+ * the same "converted from the runtime zod schema" pattern for its body.
  */
-
-function schema(zodSchema: ZodType): object {
-  // Zod 4's own converter, NOT the third-party zod-to-json-schema package:
-  // that package's parser reads Zod 3-shaped internals and silently returns
-  // `{}` for a native Zod 4 schema like the ones in schemas/*.ts. It fails
-  // quietly - an empty request body in the docs, no error anywhere - so do not
-  // "fix" this back to the third-party package.
-  return z.toJSONSchema(zodSchema, { target: 'openapi-3.0' });
-}
 
 const errorResponse = {
   description: 'An error response, shared by every endpoint.',
@@ -51,14 +37,16 @@ const rangeParameters = [
     name: 'from',
     in: 'query',
     required: true,
-    description: `Start of the range, ISO-8601. Required: the range is what bounds the scan, and it may not exceed ${MAX_RANGE_DAYS} days.`,
+    description:
+      'Start of the range, ISO-8601. Required: a caller who forgets it gets a 400 naming the field, not a silent all-time query.',
     schema: { type: 'string', format: 'date-time' },
   },
   {
     name: 'to',
     in: 'query',
     required: true,
-    description: `End of the range, ISO-8601. At most ${MAX_RANGE_DAYS} days after \`from\`.`,
+    description:
+      'End of the range, ISO-8601. Must not be earlier than `from`. Ranges over 7 days are answered from the `metrics_hourly` rollup rather than the raw table - see the `source` field on `GET /api/v1/metrics`.',
     schema: { type: 'string', format: 'date-time' },
   },
 ];
@@ -67,14 +55,16 @@ export function buildOpenApiDocument(): object {
   return {
     openapi: '3.0.3',
     info: {
-      title: 'mona viewer API',
+      title: 'metrion viewer API',
       version: '0.1.0',
       description:
-        'Reads the minute-by-minute metrics the mona collector writes to Azure Blob Storage.\n\n' +
-        'The read endpoints are public: this is aggregate resource usage of my own machines. ' +
-        'No client IP, user agent, request path or query string exists anywhere in this pipeline - ' +
-        'request metrics are aggregated per hostname only.\n\n' +
-        'Only `POST /api/v1/ingest` is authenticated.\n\n' +
+        'Reads the minute-by-minute metrics the metrion agent sends, stored in Postgres/TimescaleDB.\n\n' +
+        "Every response is scoped to the caller's own projects - see " +
+        'docs/adr/0004-postgres-timescaledb-over-append-blob.md. No client IP, user agent, request ' +
+        'path or query string exists anywhere in this pipeline - request metrics are aggregated per ' +
+        'hostname only.\n\n' +
+        'Writing metrics is done through the separate `@metrion/ingest` service, not this app - ' +
+        'see its own `/openapi.json`.\n\n' +
         // Swagger UI renders `info.description` as Markdown at the top of the
         // page, so the legal links land on this second public surface without
         // `customCss`, `customJsStr`, or any widening of the deliberately
@@ -85,18 +75,8 @@ export function buildOpenApiDocument(): object {
     },
     tags: [
       { name: 'metrics', description: 'Reading stored metrics.' },
-      { name: 'ingest', description: 'Submitting metrics from a sender without a blob SAS.' },
       { name: 'health', description: 'Liveness.' },
     ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          description: 'The ingest token. Never published here - it is deployment configuration.',
-        },
-      },
-    },
     paths: {
       '/api/v1/health/liveness': {
         get: {
@@ -144,17 +124,12 @@ export function buildOpenApiDocument(): object {
                           },
                         },
                       },
-                      skippedLines: {
-                        type: 'integer',
-                        description: 'Blob lines that could not be parsed and were dropped.',
-                      },
                     },
                   },
                 },
               },
             },
             '400': errorResponse,
-            '503': errorResponse,
           },
         },
       },
@@ -182,7 +157,7 @@ export function buildOpenApiDocument(): object {
               in: 'query',
               required: true,
               description:
-                'Repeatable. Pass it once per metric to get them all from a single scan of the day-blobs - one request costs one cross-region download, so asking for 36 metrics separately costs 36 of them.',
+                'Repeatable. Pass it once per metric to get them all from a single query - `name = ANY(...)`, not one round trip per name.',
               explode: true,
               schema: { type: 'array', items: { type: 'string', example: 'cpu.usage' } },
             },
@@ -230,49 +205,18 @@ export function buildOpenApiDocument(): object {
                           },
                         },
                       },
-                      skippedLines: { type: 'integer' },
+                      source: {
+                        type: 'string',
+                        enum: ['raw', 'hourly'],
+                        description:
+                          'Which table answered: `raw` for the `metrics` hypertable (ranges up to 7 days), `hourly` for the `metrics_hourly` continuous aggregate (wider ranges).',
+                      },
                     },
                   },
                 },
               },
             },
             '400': errorResponse,
-            '503': errorResponse,
-          },
-        },
-      },
-      '/api/v1/ingest': {
-        post: {
-          tags: ['ingest'],
-          summary: 'Append one or more metric envelopes.',
-          description:
-            'For senders that do not already hold a blob SAS. The mona collector does not use ' +
-            'this endpoint - it writes to the blob directly, so it never has to wake this ' +
-            'scale-to-zero container.\n\nRate limited per token.',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: { 'application/json': { schema: schema(ingestBodySchema) } },
-          },
-          responses: {
-            '202': {
-              description: 'Appended.',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      accepted: { type: 'integer' },
-                      points: { type: 'integer' },
-                    },
-                  },
-                },
-              },
-            },
-            '400': errorResponse,
-            '401': errorResponse,
-            '429': errorResponse,
-            '503': errorResponse,
           },
         },
       },

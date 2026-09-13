@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted, 2026-09-06.
+Accepted, 2026-09-06. Superseded by 0004 (partially), 2026-09-12: the envelope
+itself (`resource`/`subResource`/`metrics[]`) is still current as the wire
+format the ingest endpoint accepts. Its "one JSONL line is a JSON array of
+envelopes" rationale is superseded - that batching exists to keep one Azure
+`Append Block` HTTPS call per minute, which stops applying once envelopes are
+written as rows in `packages/db`'s `metrics` hypertable instead of appended
+to a blob.
 
 ## Context
 
@@ -48,8 +54,8 @@ gain. An array keeps one write per minute, and keeps `queue.ts` and
 ### Old blobs are never rewritten
 
 The viewer detects the shape per line: `Array.isArray(parsed)` is the new
-format, an object with a `cpu` key is the legacy one. `LegacyMetricsSample`
-stays in `@mona/shared` purely to type that second branch.
+format, an object with a `cpu` key is the legacy one. `VpsSample`
+stays in `@metrion/shared` purely to type that second branch.
 
 Per line, not per blob, because the blob for the cutover day contains both
 shapes - the minutes before the deploy and the minutes after it, in one
@@ -59,7 +65,7 @@ the storage platform to keep away from.
 
 ## Consequences
 
-- A new sender needs no change to `@mona/shared` at all - it names its own
+- A new sender needs no change to `@metrion/shared` at all - it names its own
   metrics and the viewer renders whatever arrives.
 - The viewer carries two read paths forever, or at least until the 90-day
   lifecycle policy from ADR 0001 has aged out every pre-cutover blob. After

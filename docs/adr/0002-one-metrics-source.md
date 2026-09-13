@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted, 2026-09-05.
+Accepted, 2026-09-05. Still current: ADR 0004 changes where the collector's
+numbers are stored, not the rule that the collector is the one place they
+are measured. The alarm and the status page still consume, they still do
+not re-measure.
 
 ## Context
 

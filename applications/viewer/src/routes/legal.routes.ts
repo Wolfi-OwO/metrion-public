@@ -49,9 +49,9 @@ interface LegalDocument {
 }
 
 const DOCUMENTS: readonly LegalDocument[] = [
-  { path: '/impressum', file: 'IMPRESSUM.md', title: 'Impressum - mona', lang: 'de' },
-  { path: '/privacy', file: 'PRIVACY.md', title: 'Privacy Policy - mona', lang: 'en' },
-  { path: '/terms', file: 'TERMS_OF_USE.md', title: 'Terms of Use - mona', lang: 'en' },
+  { path: '/impressum', file: 'IMPRESSUM.md', title: 'Impressum - metrion', lang: 'de' },
+  { path: '/privacy', file: 'PRIVACY.md', title: 'Privacy Policy - metrion', lang: 'en' },
+  { path: '/terms', file: 'TERMS_OF_USE.md', title: 'Terms of Use - metrion', lang: 'en' },
 ];
 
 /** The paths these routes own. Exported so the limiter and the SPA fallback

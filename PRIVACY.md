@@ -1,6 +1,6 @@
 # Privacy Policy (Datenschutzerklärung)
 
-**mona — server supervision platform**
+**metrion — server supervision platform**
 **Effective:** 2026-09-07
 **Last updated:** 2026-09-07
 
@@ -21,7 +21,7 @@ the people it addresses — it has to be added, not translated on request. See
 
 ## 1. Scope
 
-mona is two programs and one browser client:
+metrion is two programs and one browser client:
 
 - **collector** — runs on the operator's own VPS (Contabo, Germany) once a
   minute and appends resource metrics to Azure Blob Storage.
@@ -56,7 +56,7 @@ can be smuggled into a blob as a metric.
 The measurements are CPU, load average, memory, root-disk and Docker disk
 usage, network throughput, per-container CPU/memory/restarts/OOM state, and
 per-hostname request aggregates
-(`applications/collector/src/lib/to-metric-envelopes.ts:29-103`).
+(`applications/agent/src/lib/to-metric-envelopes.ts:29-103`).
 
 ## 3. What is deliberately never stored
 
@@ -67,7 +67,7 @@ This is enforced in four separate places rather than asserted once:
 - The Caddy access-log reader types the log line as `status`, `duration` and
   `request.host` only. `request.remote_ip`, `request.headers` and `request.uri`
   exist in the real line and are never named, so there is no filter to bypass
-  (`applications/collector/src/collectors/caddy-requests.ts:14-19`).
+  (`applications/agent/src/collectors/caddy-requests.ts:14-19`).
 - The viewer replaces `pino-http`'s request serializer outright. The default
   emits `remoteAddress`, `remotePort`, the full header set, and the query
   string inside `url`; the replacement emits `method` and `path` only, with the
@@ -172,7 +172,7 @@ ships, and this section becomes false.
   not by application code, so there is no job that can silently stop running.
 - **On the VPS:** undelivered samples wait in a local queue capped at 1440
   lines — one day — plus small state files
-  (`applications/collector/src/config/index.ts:48-59`). They are deleted once
+  (`applications/agent/src/config/index.ts:48-59`). They are deleted once
   delivered.
 
 ## 6. Processors and recipients
@@ -226,7 +226,7 @@ sense.
    separate processing operation of personal data that this policy does not
    cover. It runs under Caddy's own configuration and Docker's log rotation,
    needs its own legal basis (Art 6(1)(f), security and operation of the
-   service) and its own retention answer. It is outside mona, not outside
+   service) and its own retention answer. It is outside metrion, not outside
    existence.
 
 **Consequence.** Because no personal data of third parties is collected, the

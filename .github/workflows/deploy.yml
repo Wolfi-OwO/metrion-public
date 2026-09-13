@@ -1,14 +1,11 @@
 name: Deploy
 
-# Only after CI has passed on main. A deploy that races the test run would
-# publish an image nobody has checked.
+# Disabled as part of the Metrion rename (issue #2): this workflow targets the
+# `mona-viewer` Container App, which is soon to be decommissioned (issue #17)
+# in favour of the new multi-tenant viewer. Manual dispatch only, so the old
+# app can still be redeployed by hand if needed before that cutover, but a
+# push to main no longer triggers it.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  # A manual button, for redeploying the same commit after an infrastructure
-  # change that CI knows nothing about.
   workflow_dispatch:
 
 # OIDC: GitHub mints a short-lived token that Azure trades for one of its own.
@@ -32,9 +29,6 @@ env:
 
 jobs:
   deploy:
-    # `workflow_run` fires for failures too, so the conclusion has to be checked
-    # explicitly or a red build would deploy itself.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:

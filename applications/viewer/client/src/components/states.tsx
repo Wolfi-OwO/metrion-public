@@ -8,7 +8,10 @@ import type { TimeRange } from '../lib/range.ts';
  * action that makes sense next.
  */
 
-function Panel({ children }: { children: React.ReactNode }) {
+// Exported: the dashboard and project-settings screens (`routes/`) reuse
+// this trio for their own empty and error panels rather than each growing a
+// slightly different one.
+export function Panel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-64 flex-col items-start justify-center gap-3 px-5 py-14 sm:px-8">
       <div className="max-w-prose">{children}</div>
@@ -16,26 +19,33 @@ function Panel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Heading({ children }: { children: React.ReactNode }) {
+export function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className="text-[15px] font-semibold text-ink">{children}</h2>;
 }
 
-function Body({ children }: { children: React.ReactNode }) {
+export function Body({ children }: { children: React.ReactNode }) {
   return <p className="mt-1.5 text-[13px] leading-relaxed text-ink-dim">{children}</p>;
 }
 
 export function ActionButton({
   onClick,
   children,
+  type = 'button',
+  disabled = false,
+  className = '',
 }: {
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
+  type?: 'button' | 'submit';
+  disabled?: boolean;
+  className?: string;
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
-      className="mt-4 rounded-sm border border-line-strong bg-bg-800 px-3 py-1.5 text-[12px] font-medium text-ink transition-colors duration-150 hover:border-series-1 hover:text-series-1"
+      disabled={disabled}
+      className={`rounded-sm border border-line-strong bg-bg-800 px-3 py-1.5 text-[12px] font-medium text-ink transition-colors duration-150 hover:border-series-1 hover:text-series-1 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
@@ -110,7 +120,11 @@ export function EmptyState({
         <span className="font-mono text-ink">{label}</span> between{' '}
         {formatTimestamp(range.from.getTime())} and {formatTimestamp(range.to.getTime())}.
       </Body>
-      {onWiden && <ActionButton onClick={onWiden}>Look further back</ActionButton>}
+      {onWiden && (
+        <ActionButton className="mt-4" onClick={onWiden}>
+          Look further back
+        </ActionButton>
+      )}
     </Panel>
   );
 }
@@ -158,7 +172,9 @@ export function ErrorState({ error, onRetry }: { error: ApiError; onRetry: () =>
         <Heading>{errorHeading(error)}</Heading>
         <Body>{errorBody(error)}</Body>
       </div>
-      <ActionButton onClick={onRetry}>Try again</ActionButton>
+      <ActionButton className="mt-4" onClick={onRetry}>
+        Try again
+      </ActionButton>
     </Panel>
   );
 }

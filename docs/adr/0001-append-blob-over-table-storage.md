@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted, 2026-09-05.
+Accepted, 2026-09-05. Superseded by 0004, 2026-09-12: multi-tenant accounts
+are exactly the exit condition this ADR named for itself - "would need
+reconsidering if this ever collects from many hosts into one container" -
+and an in-memory scan of every line of every day-blob cannot be scoped to
+one account's rows.
 
 ## Context
 

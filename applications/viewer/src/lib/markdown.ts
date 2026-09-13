@@ -227,7 +227,7 @@ nav a { margin-right: 1rem; }
 </style>
 </head>
 <body>
-<nav><a href="/">mona</a><a href="/impressum">Impressum</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>
+<nav><a href="/">metrion</a><a href="/impressum">Impressum</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>
 ${bodyHtml}
 </body>
 </html>

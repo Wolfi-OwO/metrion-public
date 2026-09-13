@@ -1,6 +1,6 @@
 # Security Policy
 
-`mona` collects minute-by-minute resource metrics from my own VPS and serves
+`metrion` collects minute-by-minute resource metrics from my own VPS and serves
 them back as charts. Two things run: the **collector** on the VPS, which
 appends one JSON line a minute straight to Azure Blob Storage, and the
 **viewer**, an Azure Container App that reads those blobs back and exposes a
@@ -28,7 +28,7 @@ No client IPs, no user agents, no request paths, no query strings. Not in a
 blob, not in a log line, not in an API response, not in an error body.
 
 Caddy's access log is read for hostname, status code and latency only,
-aggregated per minute - `applications/collector/src/collectors/caddy-requests.ts`
+aggregated per minute - `applications/agent/src/collectors/caddy-requests.ts`
 enforces this by its type simply not naming `remote_ip`, `request.headers` or
 `request.uri`, rather than by a filter that could miss one.
 
