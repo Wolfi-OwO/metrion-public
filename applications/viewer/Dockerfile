@@ -14,6 +14,7 @@ WORKDIR /repo
 # actually changes rather than on every source edit.
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/db/package.json packages/db/
 COPY applications/agent/package.json applications/agent/
 COPY applications/viewer/package.json applications/viewer/
 COPY applications/viewer/client/package.json applications/viewer/client/
@@ -21,12 +22,20 @@ RUN npm ci
 
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages/shared packages/shared
+COPY packages/db packages/db
 COPY applications/viewer applications/viewer
 
+# @metrion/db first: the viewer's tsconfig.build.json references it as a
+# project (tsc -b resolves that reference on disk, same trap the ingest
+# Dockerfile already accounts for), and its own DB access
+# (applications/viewer/src/lib/db.ts) imports @metrion/db at runtime, not just
+# at the type level - unlike @metrion/shared, which erases completely.
+#
 # The client is built by Vite and is deliberately outside the root `tsc -b`
 # project graph, so JSX never enters the collector's build. Build the server
 # and the client separately, each with its own toolchain.
-RUN npm run build --workspace @metrion/viewer \
+RUN npm run build --workspace @metrion/db \
+ && npm run build --workspace @metrion/viewer \
  && npm run build --workspace @metrion/viewer-client
 
 FROM node:22-alpine AS runtime
@@ -37,6 +46,7 @@ ENV NODE_ENV=production
 # image that faces the internet.
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/db/package.json packages/db/
 COPY applications/agent/package.json applications/agent/
 COPY applications/viewer/package.json applications/viewer/
 COPY applications/viewer/client/package.json applications/viewer/client/
@@ -44,6 +54,10 @@ RUN npm ci --omit=dev --workspace @metrion/viewer --include-workspace-root \
  && npm cache clean --force
 
 COPY --from=build /repo/applications/viewer/dist ./dist
+# Same reason as the ingest Dockerfile: @metrion/db is a real runtime
+# dependency here, not type-only, so the compiled pool.js has to actually be
+# on disk at the workspace symlink's target for `createPool()` to resolve.
+COPY --from=build /repo/packages/db/dist ./packages/db/dist
 # `/app/package.json` is the workspace root manifest and has no `"type":
 # "module"`, so without this marker Node reparses every compiled file as ESM
 # after first failing to read it as CommonJS - it works, but it warns on every
